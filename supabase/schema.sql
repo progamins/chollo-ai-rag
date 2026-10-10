@@ -4,8 +4,9 @@
 -- Ejecuta este script completo en: Supabase Dashboard → SQL Editor → New query
 --
 -- IMPORTANTE — dimensiones de embedding:
---   OpenAI  text-embedding-3-small → 1536 (por defecto en este esquema)
---   Ollama nomic-embed-text        → 768  (reemplaza 1536 por 768 en TODO el script)
+--   Gemini  text-embedding-004    → 768 (por defecto en este esquema — FREE TIER)
+--   Ollama  nomic-embed-text      → 768
+--   OpenAI  text-embedding-3-small → 1536 (reemplaza 768 por 1536 en TODO el script)
 -- El valor debe coincidir con la variable EMBEDDING_DIM del servicio.
 
 -- 1) Extensión de vectores
@@ -18,7 +19,7 @@ create table if not exists documents (
   content      text not null,                 -- texto que se embeddea
   metadata     jsonb not null default '{}'::jsonb,  -- titulo, precio, url, imagen...
   source       text not null default 'catalogo',
-  embedding    vector(1536) not null,
+  embedding    vector(768) not null,
   created_at   timestamptz not null default now()
 );
 
@@ -33,7 +34,7 @@ alter table documents enable row level security;
 
 -- 5) Función de búsqueda por similitud (la llama el servicio vía RPC)
 create or replace function match_documents(
-  query_embedding vector(1536),
+  query_embedding vector(768),
   match_count int default 5
 )
 returns table (
@@ -57,7 +58,12 @@ as $$
 $$;
 
 -- ============================================================
--- Verificación rápida (opcional):
--- select count(*) from documents;
--- El servicio la llena con POST /api/ingest (ver scripts/ingest-local.mjs).
+-- Si ya habías creado la tabla con vector(1536) (versión OpenAI),
+-- ejecuta PRIMERO este bloque de migración y DESPUÉS el script de arriba:
+--
+--   drop function if exists match_documents(vector(1536), int);
+--   drop table if exists documents;
+--
+-- (Seguro mientras la tabla esté vacía — si ya ingestaste datos,
+--  hay que regenerar los embeddings: REINGEST_ALL=1 en la ingesta.)
 -- ============================================================

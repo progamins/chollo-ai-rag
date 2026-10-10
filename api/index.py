@@ -4,7 +4,7 @@ Chollo & Glam — Asistente IA (RAG) · API FastAPI
 Microservicio de búsqueda semántica y RAG sobre el catálogo de la tienda.
 
 Arquitectura:
-    Astro (tienda) → proxy server-side → esta API → Supabase (pgvector) → OpenAI/Ollama
+    Astro (tienda) → proxy server-side → esta API → Supabase (pgvector) → Gemini/OpenAI/Ollama
 
 Endpoints:
     GET    /                → info del servicio
@@ -14,7 +14,12 @@ Endpoints:
     POST   /api/ingest      → (X-API-Key) inserta/actualiza documentos con embeddings
     DELETE /api/documents    → (X-API-Key) borra documentos por origen
 
-Diseñoado para Vercel Python (serverless) y para desarrollo local con uvicorn.
+Proveedores de IA (misma base de código):
+    gemini → Google Gemini vía endpoint OpenAI-compatible (FREE TIER, sin tarjeta)
+    openai → OpenAI (nube, de pago)
+    ollama → Ollama local (gratis, solo desarrollo local)
+
+Diseñado para Vercel Python (serverless) y para desarrollo local con uvicorn.
 """
 
 import os
@@ -34,15 +39,29 @@ SUPABASE_SERVICE_KEY: str = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
 
 API_KEY: str = os.environ.get("API_KEY", "").strip()
 
-# Proveedor de IA: "openai" (nube) u "ollama" (local). Doble proveedor demostrable.
-AI_PROVIDER: str = os.environ.get("AI_PROVIDER", "openai").strip().lower()
+# Proveedor de IA (misma base de código para los tres):
+#   gemini → Google Gemini, endpoint OpenAI-compatible, FREE TIER (por defecto)
+#   openai → OpenAI de pago
+#   ollama → servidor local
+AI_PROVIDER: str = os.environ.get("AI_PROVIDER", "gemini").strip().lower()
 OPENAI_API_KEY: str = os.environ.get("OPENAI_API_KEY", "").strip()
-# Para Ollama: base URL del servidor local (OpenAI-compatible)
+GEMINI_API_KEY: str = os.environ.get("GEMINI_API_KEY", "").strip()
+# Base URL del endpoint OpenAI-compatible (se infiere por proveedor si no se define)
 AI_BASE_URL: Optional[str] = os.environ.get("AI_BASE_URL", "").strip() or None
 
-EMBEDDING_MODEL: str = os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small").strip()
-EMBEDDING_DIM: int = int(os.environ.get("EMBEDDING_DIM", "1536"))
-CHAT_MODEL: str = os.environ.get("CHAT_MODEL", "gpt-4o-mini").strip()
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# Valores por defecto según proveedor (cada uno se puede sobreescribir con env)
+PROVIDER_DEFAULTS = {
+    "gemini": {"embedding_model": "text-embedding-004", "embedding_dim": 768, "chat_model": "gemini-2.0-flash"},
+    "openai": {"embedding_model": "text-embedding-3-small", "embedding_dim": 1536, "chat_model": "gpt-4o-mini"},
+    "ollama": {"embedding_model": "nomic-embed-text", "embedding_dim": 768, "chat_model": "llama3.1"},
+}
+_defaults = PROVIDER_DEFAULTS.get(AI_PROVIDER, PROVIDER_DEFAULTS["gemini"])
+
+EMBEDDING_MODEL: str = os.environ.get("EMBEDDING_MODEL", "").strip() or _defaults["embedding_model"]
+EMBEDDING_DIM: int = int(os.environ.get("EMBEDDING_DIM", str(_defaults["embedding_dim"])))
+CHAT_MODEL: str = os.environ.get("CHAT_MODEL", "").strip() or _defaults["chat_model"]
 
 # CORS: solo orígenes explícitos (la tienda). "*" está prohibido por diseño.
 ALLOWED_ORIGINS: list = [
@@ -78,21 +97,23 @@ def get_supabase():
 
 
 def get_ai():
-    """Cliente OpenAI-compatible (OpenAI en nube, u Ollama local vía AI_BASE_URL)."""
+    """Cliente OpenAI-compatible — un solo código para Gemini (gratis), OpenAI y Ollama."""
     global _ai_client
     if _ai_client is None:
-        if AI_PROVIDER == "openai":
+        from openai import OpenAI  # import perezoso: arranque más rápido
+
+        if AI_PROVIDER == "gemini":
+            if not GEMINI_API_KEY:
+                raise RuntimeError("GEMINI_API_KEY no configurada (gratuita en https://aistudio.google.com)")
+            _ai_client = OpenAI(api_key=GEMINI_API_KEY, base_url=AI_BASE_URL or GEMINI_BASE_URL)
+        elif AI_PROVIDER == "openai":
             if not OPENAI_API_KEY:
                 raise RuntimeError("OPENAI_API_KEY no configurada")
-            from openai import OpenAI
-
             _ai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=AI_BASE_URL)
         elif AI_PROVIDER == "ollama":
-            from openai import OpenAI  # Ollama expone API compatible con OpenAI
-
             _ai_client = OpenAI(api_key="ollama", base_url=AI_BASE_URL or "http://localhost:11434/v1")
         else:
-            raise RuntimeError("AI_PROVIDER debe ser 'openai' u 'ollama'")
+            raise RuntimeError("AI_PROVIDER debe ser 'gemini', 'openai' u 'ollama'")
     return _ai_client
 
 
@@ -229,12 +250,17 @@ def require_api_key(request: Request) -> None:
 
 def provider_status() -> dict:
     """Estado de los proveedores para /api/health (sin exponer secretos)."""
-    ai_ok = (AI_PROVIDER == "openai" and bool(OPENAI_API_KEY)) or (AI_PROVIDER == "ollama" and bool(AI_BASE_URL))
+    if AI_PROVIDER == "gemini":
+        ai_ok = bool(GEMINI_API_KEY)
+    elif AI_PROVIDER == "openai":
+        ai_ok = bool(OPENAI_API_KEY)
+    else:  # ollama
+        ai_ok = bool(AI_BASE_URL)
     return {
         "provider": AI_PROVIDER,
         "embedding_model": EMBEDDING_MODEL,
         "embedding_dim": EMBEDDING_DIM,
-        "chat_model": CHAT_MODEL if AI_PROVIDER == "openai" else (CHAT_MODEL or "llama3.1"),
+        "chat_model": CHAT_MODEL,
         "ai_configured": ai_ok,
         "supabase_configured": bool(SUPABASE_URL and SUPABASE_SERVICE_KEY),
     }

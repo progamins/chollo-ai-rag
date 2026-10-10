@@ -3,12 +3,16 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://supabase.com)
-[![OpenAI](https://img.shields.io/badge/OpenAI-embeddings+LLM-412991?logo=openai&logoColor=white)](https://openai.com)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-free_tier-8E75B2?logo=googlegemini&logoColor=white)](https://aistudio.google.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-compatible-412991?logo=openai&logoColor=white)](https://openai.com)
+[![Ollama](https://img.shields.io/badge/Ollama-local-000?logo=ollama&logoColor=white)](https://ollama.com)
 [![Vercel](https://img.shields.io/badge/Vercel-serverless-000?logo=vercel&logoColor=white)](https://vercel.com)
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
 
 Microservicio de **búsqueda semántica y RAG** (Retrieval-Augmented Generation) sobre el catálogo real de la tienda [Chollo & Glam](https://github.com/progamins/website). El asistente entiende lenguaje natural ("un regalo elegante para aniversario"), recupera los productos más relevantes por **similitud de embeddings** (coseno, pgvector) y genera una recomendación **con citas a productos reales** — nunca inventa información del catálogo.
+
+> 💰 **100% gratuito en producción**: usa el free tier de Google Gemini (sin tarjeta) + Supabase free + Vercel free. Con un solo código también funciona con OpenAI (de pago) u Ollama (local).
 
 > Evolución independiente del módulo `ai-search/` del repo de la tienda: mismo código, repo propio para despliegue y portfolio.
 
@@ -46,9 +50,19 @@ Microservicio de **búsqueda semántica y RAG** (Retrieval-Augmented Generation)
 |---|---|
 | API | Python 3.12 · **FastAPI** · Pydantic (validación estricta) |
 | Búsqueda vectorial | **Supabase PostgreSQL + pgvector** (índice IVF, similitud coseno, función RPC, RLS) |
-| IA | **OpenAI** (embeddings + LLM) con proveedor alternativo **Ollama** local (API compatible) |
+| IA | **Google Gemini** (free tier, endpoint OpenAI-compatible) · alternativa: OpenAI (nube) u **Ollama** (local) — misma base de código |
 | Ingesta | `scripts/ingest.mjs` — Node, por lotes, idempotente (upsert por `external_id`) |
 | Deploy | **Vercel** (Python serverless) · CI con **GitHub Actions** |
+
+### Proveedores de IA soportados
+
+| Proveedor | Costo | Embeddings | LLM | ¿Sirve en Vercel? |
+|---|---|---|---|---|
+| **Gemini** *(por defecto)* | **Gratis** (free tier, sin tarjeta) | `text-embedding-004` (768d) | `gemini-2.0-flash` | ✅ |
+| OpenAI | De pago | `text-embedding-3-small` (1536d) | `gpt-4o-mini` | ✅ |
+| Ollama | Gratis (local) | `nomic-embed-text` (768d) | `llama3.1` | ❌ solo dev local |
+
+Los tres usan el mismo código (endpoint OpenAI-compatible); solo cambian `AI_PROVIDER` y las claves. El free tier de Gemini (15 RPM chat / ~1000 req día) es más que suficiente para el asistente de una tienda.
 
 ## API
 
@@ -89,12 +103,11 @@ curl -X POST $BASE/api/chat -H 'Content-Type: application/json' \
 | `SUPABASE_URL` | `https://TU-PROYECTO.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | service_role key (secreta) |
 | `API_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
-| `AI_PROVIDER` | `openai` (o `ollama`) |
-| `OPENAI_API_KEY` | clave de OpenAI (si provider=openai) |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` |
-| `EMBEDDING_DIM` | `1536` (OpenAI) · `768` (Ollama nomic-embed-text) |
-| `CHAT_MODEL` | `gpt-4o-mini` |
+| `AI_PROVIDER` | `gemini` (gratis) |
+| `GEMINI_API_KEY` | clave gratuita de [aistudio.google.com](https://aistudio.google.com) → Get API key |
 | `ALLOWED_ORIGINS` | dominio de la tienda |
+
+Los modelos y dimensiones se infieren por proveedor (`text-embedding-004` · 768d · `gemini-2.0-flash`). Solo sobreescribe `EMBEDDING_MODEL` / `EMBEDDING_DIM` / `CHAT_MODEL` si cambias de proveedor.
 
 4. Deploy y verifica: `GET https://tu-proyecto.vercel.app/api/health`
 
@@ -146,7 +159,7 @@ uvicorn api.index:app --reload --port 8000
 - **IA aplicada de extremo a extremo**: embeddings, búsqueda semántica, RAG con citas, prompt engineering con guardrails
 - **Python + FastAPI**: API REST con validación Pydantic, middleware, manejo de errores
 - **PostgreSQL avanzado**: pgvector, índices IVF, funciones RPC, Row-Level Security
-- **Doble proveedor de IA** con la misma base de código: OpenAI (nube) ↔ Ollama (local)
+- **Arquitectura multi-proveedor** con la misma base de código: **Gemini (gratis)** ↔ OpenAI (nube) ↔ Ollama (local) — endpoint OpenAI-compatible
 - **Cloud + CI/CD**: Vercel serverless, GitHub Actions, configuración por entorno, ingesta idempotente
 - **Integración con producto real**: no es un demo aislado — consume el catálogo en producción de la tienda
 

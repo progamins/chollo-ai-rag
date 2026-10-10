@@ -53,7 +53,7 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 
 # Valores por defecto según proveedor (cada uno se puede sobreescribir con env)
 PROVIDER_DEFAULTS = {
-    "gemini": {"embedding_model": "text-embedding-004", "embedding_dim": 768, "chat_model": "gemini-2.0-flash"},
+    "gemini": {"embedding_model": "gemini-embedding-001", "embedding_dim": 768, "chat_model": "gemini-2.5-flash"},
     "openai": {"embedding_model": "text-embedding-3-small", "embedding_dim": 1536, "chat_model": "gpt-4o-mini"},
     "ollama": {"embedding_model": "nomic-embed-text", "embedding_dim": 768, "chat_model": "llama3.1"},
 }
@@ -123,7 +123,11 @@ def get_ai():
 def embed_texts(texts: list) -> list:
     """Convierte textos en vectores. Valida dimensión contra EMBEDDING_DIM."""
     client = get_ai()
-    response = client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+    kwargs = {"model": EMBEDDING_MODEL, "input": texts}
+    if AI_PROVIDER == "gemini":
+        # gemini-embedding-001 devuelve 3072d por defecto; ajusta a EMBEDDING_DIM
+        kwargs["dimensions"] = EMBEDDING_DIM
+    response = client.embeddings.create(**kwargs)
     vectors = [item.embedding for item in response.data]
     for v in vectors:
         if len(v) != EMBEDDING_DIM:

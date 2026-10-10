@@ -1,0 +1,21 @@
+01:31:42.731636 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/bin
+01:31:42.739680 git.c:502               trace: built-in: git push origin main
+01:31:42.742677 run-command.c:674       trace: run_command: GIT_DIR=.git git remote-https origin https://github.com/progamins/chollo-ai-rag.git
+01:31:42.743194 run-command.c:946       trace: start_command: git remote-https origin https://github.com/progamins/chollo-ai-rag.git
+01:31:42.763896 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/libexec/git-core
+01:31:42.767895 git.c:812               trace: exec: git-remote-https origin https://github.com/progamins/chollo-ai-rag.git
+01:31:42.768895 run-command.c:674       trace: run_command: git-remote-https origin https://github.com/progamins/chollo-ai-rag.git
+01:31:42.768895 run-command.c:946       trace: start_command: git-remote-https origin https://github.com/progamins/chollo-ai-rag.git
+01:31:42.789051 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/libexec/git-core
+01:31:43.139522 run-command.c:674       trace: run_command: 'git credential-manager get'
+01:31:43.140524 run-command.c:946       trace: start_command: 'C:/Program Files/Git/usr/bin/sh.exe' -c 'git credential-manager get' 'git credential-manager get'
+01:31:43.194249 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/libexec/git-core
+01:31:43.197248 git.c:812               trace: exec: git-credential-manager get
+01:31:43.197248 run-command.c:674       trace: run_command: git-credential-manager get
+01:31:43.197248 run-command.c:946       trace: start_command: git-credential-manager get
+01:31:43.280699 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/libexec/git-core
+01:31:43.282710 git.c:502               trace: built-in: git version
+01:31:43.309420 exec-cmd.c:266          trace: resolved executable dir: C:/Program Files/Git/mingw64/libexec/git-core
+01:31:43.312419 git.c:502               trace: built-in: git config list --show-scope -z --no-type
+fatal: Cannot prompt because user interactivity has been disabled.
+fatal: could not read Username for 'https://github.com': terminal prompts disabled

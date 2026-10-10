@@ -58,7 +58,7 @@ Microservicio de **búsqueda semántica y RAG** (Retrieval-Augmented Generation)
 
 | Proveedor | Costo | Embeddings | LLM | ¿Sirve en Vercel? |
 |---|---|---|---|---|
-| **Gemini** *(por defecto)* | **Gratis** (free tier, sin tarjeta) | `text-embedding-004` (768d) | `gemini-2.0-flash` | ✅ |
+| **Gemini** *(por defecto)* | **Gratis** (free tier, sin tarjeta) | `gemini-embedding-001` (768d) | `gemini-2.5-flash` | ✅ |
 | OpenAI | De pago | `text-embedding-3-small` (1536d) | `gpt-4o-mini` | ✅ |
 | Ollama | Gratis (local) | `nomic-embed-text` (768d) | `llama3.1` | ❌ solo dev local |
 

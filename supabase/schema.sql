@@ -32,6 +32,13 @@ create index if not exists documents_embedding_idx
 --    La anon key queda fuera por diseño.
 alter table documents enable row level security;
 
+-- 4b) Privilegios explícitos SOLO para service_role.
+--     Necesario si el proyecto NO usa "exponer tablas automáticamente"
+--     (configuración recomendada). RLS bypass NO reemplaza a los GRANTs.
+grant select, insert, update, delete on table documents to service_role;
+grant execute on function match_documents(vector(768), int) to service_role;
+revoke all on table documents from anon, authenticated;
+
 -- 5) Función de búsqueda por similitud (la llama el servicio vía RPC)
 create or replace function match_documents(
   query_embedding vector(768),

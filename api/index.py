@@ -213,7 +213,7 @@ class IngestDocument(BaseModel):
 
 
 class IngestRequest(BaseModel):
-    documents: list = Field(min_length=1, max_length=100)
+    documents: list[IngestDocument] = Field(min_length=1, max_length=100)
 
 
 # ----------------------------------------------------------------------

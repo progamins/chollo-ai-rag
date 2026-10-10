@@ -14,6 +14,15 @@ Microservicio de **búsqueda semántica y RAG** (Retrieval-Augmented Generation)
 
 > 💰 **100% gratuito en producción**: usa el free tier de Google Gemini (sin tarjeta) + Supabase free + Vercel free. Con un solo código también funciona con OpenAI (de pago) u Ollama (local).
 
+## 🖥️ Interfaz de prueba en vivo
+
+Abre la **raíz del deploy** y prueba el asistente desde el navegador — sin curl, sin Postman:
+
+- **[chollo-ai-rag.vercel.app](https://chollo-ai-rag.vercel.app/)** — interfaz de demo con ejemplos, respuestas con citas y las fuentes recuperadas (título, precio, score de similitud)
+- Tip: `/?store=https://tu-tienda.com` hace que los enlaces de productos apunten a tu tienda
+
+La interfaz es servida por la propia API (`GET /` + `GET /demo.js`, mismo origen) con CSP estricta (`script-src 'self'`, sin `unsafe-inline` para JS) y renderizado seguro con `textContent`.
+
 > Evolución independiente del módulo `ai-search/` del repo de la tienda: mismo código, repo propio para despliegue y portfolio.
 
 ## Arquitectura

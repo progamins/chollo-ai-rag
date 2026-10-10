@@ -29,6 +29,7 @@ from typing import Any, Optional
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 # ----------------------------------------------------------------------
@@ -271,6 +272,197 @@ def provider_status() -> dict:
 
 
 # ----------------------------------------------------------------------
+# Interfaz de prueba (servida por la propia API — sin hosting extra)
+# ----------------------------------------------------------------------
+DEMO_HTML = """<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Chollo & Glam — Asistente IA (RAG)</title>
+<style>
+  :root{--bg:#0d0b09;--panel:#14110d;--panel2:#1a1610;--line:#262117;--line2:#39322a;
+        --gold:#cfa764;--goldl:#e7c98d;--tx:#f2ebdc;--mut:#b5aa97;--dim:#8a8172;--err:#e57373}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font:16px/1.6 system-ui,-apple-system,sans-serif;background:
+    radial-gradient(1200px 500px at 70% -10%, #1a1610 0%, var(--bg) 60%);
+    color:var(--tx);min-height:100vh;display:grid;place-items:start center;padding:24px}
+  main{width:100%;max-width:760px}
+  header{margin-bottom:20px}
+  .kicker{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+  h1{font-family:Georgia,serif;font-size:clamp(26px,5vw,38px);font-weight:600;margin-top:6px}
+  h1 em{font-style:normal;color:var(--gold)}
+  .sub{color:var(--mut);margin-top:8px;font-size:.95rem}
+  form{display:flex;gap:8px;margin-top:18px}
+  input{flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:999px;
+    padding:13px 18px;color:var(--tx);font-size:1rem;outline:none;transition:border-color .2s}
+  input:focus{border-color:var(--gold)}
+  button.send{background:var(--gold);color:#14110d;border:0;border-radius:999px;padding:13px 26px;
+    font-weight:700;cursor:pointer;transition:transform .15s,opacity .2s}
+  button.send:hover{transform:translateY(-1px)}
+  button.send:disabled{opacity:.55;cursor:wait;transform:none}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .chip{background:transparent;border:1px solid var(--line2);color:var(--mut);border-radius:999px;
+    padding:7px 14px;font-size:.85rem;cursor:pointer;transition:all .2s}
+  .chip:hover{border-color:var(--gold);color:var(--goldl)}
+  #error{display:none;margin-top:16px;background:rgba(229,115,115,.08);border:1px solid rgba(229,115,115,.35);
+    color:var(--err);border-radius:12px;padding:12px 16px;font-size:.92rem}
+  #out{margin-top:22px;display:none}
+  .answer{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;
+    white-space:pre-wrap;line-height:1.65}
+  .answer .lbl,.sources .lbl{font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    display:block;margin-bottom:10px}
+  .sources{margin-top:16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    transition:border-color .2s}
+  .card:hover{border-color:var(--gold)}
+  .card a{color:inherit;text-decoration:none}
+  .card .n{font-size:.72rem;color:var(--gold)}
+  .card .t{font-weight:600;font-size:.95rem;margin-top:2px}
+  .card .p{color:var(--goldl);font-size:.9rem}
+  .card .s{color:var(--dim);font-size:.78rem;margin-top:6px}
+  footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--line);color:var(--dim);
+    font-size:.78rem;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+  .pill{border:1px solid var(--line2);border-radius:999px;padding:3px 10px;white-space:nowrap}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="kicker">Retrieval-Augmented Generation · Demo</span>
+    <h1>Asistente de compras <em>Chollo & Glam</em></h1>
+    <p class="sub">Pregunta en lenguaje natural. El asistente busca por significado (embeddings + pgvector),
+    responde solo con el catálogo real y cita sus fuentes.</p>
+  </header>
+  <form id="f">
+    <input id="q" placeholder="Ej.: regalo elegante de plata para un aniversario" maxlength="500" autocomplete="off">
+    <button class="send" id="b" type="submit">Preguntar</button>
+  </form>
+  <div class="chips" id="chips"></div>
+  <div id="error"></div>
+  <section id="out">
+    <div class="answer"><span class="lbl">Respuesta</span><span id="ans"></span></div>
+    <div class="sources" id="src"></div>
+  </section>
+  <footer id="foot"></footer>
+</main>
+<script src="/demo.js"></script>
+</body>
+</html>"""
+
+DEMO_JS = """(function () {
+  "use strict";
+  var form = document.getElementById("f");
+  var input = document.getElementById("q");
+  var btn = document.getElementById("b");
+  var out = document.getElementById("out");
+  var ans = document.getElementById("ans");
+  var src = document.getElementById("src");
+  var err = document.getElementById("err");
+
+  var EJEMPLOS = [
+    "Regalo elegante de plata para un aniversario",
+    "Algo bonito para regalar a mi mamá",
+    "Pulseras o collares hasta S/ 100",
+    "Algo para decorar la casa, no muy caro"
+  ];
+
+  // ?store=https://mi-tienda.com -> los enlaces de productos apuntan a la tienda
+  var STORE = new URLSearchParams(location.search).get("store") || "";
+
+  function mostrarError(msg) {
+    err.textContent = msg;
+    err.style.display = "block";
+    out.style.display = "none";
+  }
+
+  function renderSources(sources) {
+    src.textContent = "";
+    var lbl = document.createElement("span");
+    lbl.className = "lbl";
+    lbl.textContent = "Productos citados (pgvector · similitud coseno)";
+    src.appendChild(lbl);
+    sources.forEach(function (s) {
+      var m = s.metadata || {};
+      var card = document.createElement("div");
+      card.className = "card";
+      var cont = card;
+      if (STORE && m.url) {
+        var a = document.createElement("a");
+        a.href = STORE + m.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        card.appendChild(a);
+        cont = a;
+      }
+      var n = document.createElement("div");
+      n.className = "n";
+      n.textContent = "[" + s.n + "]";
+      var t = document.createElement("div");
+      t.className = "t";
+      t.textContent = m.titulo || s.external_id || "Producto";
+      var p = document.createElement("div");
+      p.className = "p";
+      p.textContent = m.precio || "";
+      var sc = document.createElement("div");
+      sc.className = "s";
+      sc.textContent = (m.categoria ? m.categoria : "") + " · score " + s.score;
+      cont.appendChild(n); cont.appendChild(t); cont.appendChild(p); cont.appendChild(sc);
+      src.appendChild(card);
+    });
+  }
+
+  function preguntar(q) {
+    btn.disabled = true;
+    btn.textContent = "Pensando…";
+    err.style.display = "none";
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q, limit: 4 })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.ok) throw new Error(d.detail || "Error");
+      out.style.display = "block";
+      ans.textContent = d.answer;
+      renderSources(d.sources || []);
+    }).catch(function () {
+      mostrarError("El asistente no pudo responder. Espera unos segundos (arranque en frío del servidor) e inténtalo de nuevo.");
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = "Preguntar";
+    });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var q = input.value.trim();
+    if (q.length < 3) { mostrarError("Escribe al menos 3 caracteres."); return; }
+    preguntar(q);
+  });
+
+  EJEMPLOS.forEach(function (e) {
+    var c = document.createElement("button");
+    c.type = "button";
+    c.className = "chip";
+    c.textContent = e;
+    c.addEventListener("click", function () { input.value = e; preguntar(e); });
+    document.getElementById("chips").appendChild(c);
+  });
+
+  fetch("/api/health").then(function (r) { return r.json(); }).then(function (h) {
+    var foot = document.getElementById("foot");
+    [h.provider + " · " + (h.chat_model || ""), h.embedding_model + " · " + h.embedding_dim + "d",
+     "Supabase pgvector", "FastAPI · Vercel"].forEach(function (t) {
+      var pill = document.createElement("span");
+      pill.className = "pill";
+      pill.textContent = t;
+      foot.appendChild(pill);
+    });
+  }).catch(function () {});
+})();
+"""
+# ----------------------------------------------------------------------
 # App FastAPI
 # ----------------------------------------------------------------------
 app = FastAPI(
@@ -293,22 +485,43 @@ app.add_middleware(
 
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
-    """Cabeceras de seguridad en TODAS las respuestas (misma política que el resto del ecosistema)."""
+    """Cabeceras de seguridad en TODAS las respuestas (misma política que el resto del ecosistema).
+    La interfaz de demo (/ y /demo.js) define su propia CSP; el middleware no la sobreescribe."""
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
-    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    if "content-security-policy" not in response.headers:
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
     response.headers["Cache-Control"] = "no-store"
     return response
 
 
+DEMO_CSP = ("default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; "
+            "connect-src 'self'; img-src 'self' https: data:; base-uri 'none'; form-action 'none'")
+
+
 @app.get("/")
-def root():
+def demo():
+    """Interfaz de prueba del asistente (HTML servido por la propia API)."""
+    r = HTMLResponse(DEMO_HTML)
+    r.headers["Content-Security-Policy"] = DEMO_CSP
+    return r
+
+
+@app.get("/demo.js")
+def demo_js():
+    """JS de la interfaz — mismo origen, así la CSP usa script-src 'self' (sin unsafe-inline)."""
+    return Response(DEMO_JS, media_type="application/javascript")
+
+
+@app.get("/api")
+def api_info():
     return {
         "service": SERVICE_NAME,
         "version": SERVICE_VERSION,
         "endpoints": ["/api/health", "/api/search", "/api/chat", "/api/ingest"],
+        "demo": "/ (interfaz de prueba)",
         "docs": "ver README.md del repositorio",
     }
 

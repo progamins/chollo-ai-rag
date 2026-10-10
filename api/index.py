@@ -280,6 +280,7 @@ DEMO_HTML = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
 <title>Chollo & Glam — Asistente IA (RAG)</title>
 <style>
   :root{--bg:#0d0b09;--panel:#14110d;--panel2:#1a1610;--line:#262117;--line2:#39322a;
@@ -359,7 +360,7 @@ DEMO_JS = """(function () {
   var out = document.getElementById("out");
   var ans = document.getElementById("ans");
   var src = document.getElementById("src");
-  var err = document.getElementById("err");
+  var err = document.getElementById("error");
 
   var EJEMPLOS = [
     "Regalo elegante de plata para un aniversario",

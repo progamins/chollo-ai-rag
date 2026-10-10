@@ -25,14 +25,21 @@ jobs:
       - name: Import de la app y registro de rutas
         run: |
           python - <<'EOF'
-          import sys
+          import sys, re
           sys.path.insert(0, 'api')
           import index
           rutas = [r.path for r in index.app.routes]
-          esperadas = ['/', '/api/health', '/api/search', '/api/chat', '/api/ingest', '/api/documents']
+          esperadas = ['/', '/demo.js', '/api', '/api/health', '/api/search', '/api/chat', '/api/ingest', '/api/documents']
           faltan = [r for r in esperadas if r not in rutas]
           assert not faltan, f'Rutas faltantes: {faltan}'
           print(f'OK — {len(rutas)} rutas registradas')
+
+          # Wiring HTML<->JS: todo getElementById del demo debe existir en el HTML
+          ids_html = set(re.findall(r'id="([^"]+)"', index.DEMO_HTML))
+          ids_js = set(re.findall(r'getElementById\("([^"]+)"\)', index.DEMO_JS))
+          faltantes = ids_js - ids_html
+          assert not faltantes, f'IDs consultados por el JS que NO existen en el HTML: {faltantes}'
+          print(f'OK — wiring demo verificado ({len(ids_js)} ids JS, {len(ids_html)} ids HTML)')
           EOF
 
       - name: Smoke test con uvicorn

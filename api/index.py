@@ -353,7 +353,7 @@ def chat(payload: ChatRequest, request: Request):
             model=CHAT_MODEL,
             messages=messages,
             temperature=0.2,     # bajo: respuestas de catálogo, no creatividad
-            max_tokens=350,
+            max_tokens=800,     # gemini-2.5 usa parte del budget en razonamiento interno
         )
         answer = (completion.choices[0].message.content or "").strip()
     except RuntimeError as exc:

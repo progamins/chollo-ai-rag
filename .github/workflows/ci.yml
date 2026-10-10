@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Verificar sintaxis (py_compile)
+        run: python -m py_compile api/index.py
+
+      - name: Import de la app y registro de rutas
+        run: |
+          python - <<'EOF'
+          import sys
+          sys.path.insert(0, 'api')
+          import index
+          rutas = [r.path for r in index.app.routes]
+          esperadas = ['/', '/api/health', '/api/search', '/api/chat', '/api/ingest', '/api/documents']
+          faltan = [r for r in esperadas if r not in rutas]
+          assert not faltan, f'Rutas faltantes: {faltan}'
+          print(f'OK — {len(rutas)} rutas registradas')
+          EOF
+
+      - name: Smoke test con uvicorn
+        run: |
+          pip install uvicorn
+          uvicorn api.index:app --port 8765 &
+          sleep 4
+          RESP=$(curl -s http://127.0.0.1:8765/api/health)
+          echo "$RESP"
+          echo "$RESP" | grep -q '"ok":true' || (echo "health check falló" && exit 1)

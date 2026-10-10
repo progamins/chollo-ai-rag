@@ -36,6 +36,7 @@ alter table documents enable row level security;
 --     Necesario si el proyecto NO usa "exponer tablas automáticamente"
 --     (configuración recomendada). RLS bypass NO reemplaza a los GRANTs.
 grant select, insert, update, delete on table documents to service_role;
+grant usage, select on sequence documents_id_seq to service_role;  -- requerido por INSERT (bigserial)
 grant execute on function match_documents(vector(768), int) to service_role;
 revoke all on table documents from anon, authenticated;
 
